@@ -1,35 +1,65 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { nanoid } from "nanoid";
+import { useEffect, useState, type FormEvent } from "react";
+import { io } from "socket.io-client";
 
-function App() {
-  const [count, setCount] = useState(0)
+const socket = io("http://localhost:3000");
+const userName = nanoid(4);
+// const avatar = "https://avatar.iran.liara.run/public";
+
+type Message = {
+  message: string;
+  userName: string;
+};
+
+const App = () => {
+  const [message, setMessage] = useState("");
+  const [groupMessages, setGroupMessages] = useState<Message[]>([]);
+
+  const sendMessage = (e: FormEvent) => {
+    e.preventDefault();
+    if(!message) return;
+    socket.emit("send message", { message, userName });
+    setMessage("");
+  };
+
+  useEffect(() => {
+    socket.on("Join Noti", ({ message, userName }: Message) => {
+      const username = userName ? userName : "Anonymous";
+      setGroupMessages((prev) => [...prev, { message, userName: username }]);
+    });
+
+    socket.on("send message", ({ message, userName }: Message) => {
+      setGroupMessages((prev) => [...prev, { message, userName }]);
+    });
+
+    socket.on("Leave Noti", ({ message , userName }: Message) => {
+      const username = userName ? userName : "Anonymous";
+      setGroupMessages((prev) => [...prev, { message, userName: username }]);
+    });
+  }, []);
 
   return (
-    <>
+    <div>
       <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+        {groupMessages.map((msg , index) => (
+          <div key={index}>
+            <p>{msg.userName} - {msg.message}</p>
+            
+          </div>
+        ))}
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+      <form onSubmit={sendMessage} action="">
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type a messge"
+        />
+        <button type="submit">Send</button>
+      </form>
+      
+    </div>
+  );
+};
 
-export default App
+export default App;
